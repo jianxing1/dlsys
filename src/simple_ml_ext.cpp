@@ -5,7 +5,25 @@
 
 namespace py = pybind11;
 
-
+void mat_mul(const float *A, const float *B, float *C, size_t m, size_t k, size_t n)
+{
+  for(size_t i = 0; i < m; i++){
+    for(size_t j = 0; j < n; j++){
+      C[i * n + j] = 0;
+      for(size_t p = 0; p < k; p++){
+        C[i * n + j] += A[i * k + p] * B[p * n + j];
+      }
+    }
+  }
+}
+void transpose(const float *A, float *B, size_t m, size_t n)
+{
+  for(size_t i = 0; i < m; i++){
+    for(size_t j = 0; j < n; j++){
+      B[j * m + i] = A[i * n + j];
+    }
+  }
+}
 void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
 								  float *theta, size_t m, size_t n, size_t k,
 								  float lr, size_t batch)
@@ -33,7 +51,39 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      */
 
     /// BEGIN YOUR CODE
-
+    size_t num_examples = m;
+    size_t epoch = (num_examples + batch - 1) / batch;
+    for(size_t i = 0; i < epoch; i++){
+      int start = i * batch;
+      const float *X_batch = &X[start * n];
+      float *Z = new float[batch * k];
+      mat_mul(X_batch, theta, Z, batch, n, k);
+      for(size_t i = 0; i < batch * k; i++){
+        Z[i] = expf(Z[i]);
+      }
+      for(size_t i = 0; i < batch; i++){
+        float sum = 0;
+        for(size_t j = 0; j < k; j++){
+          sum += Z[i * k + j];
+        }
+        for(size_t j = 0; j < k; j++){
+          Z[i * k + j] /= sum;
+          if(j == y[start + i]){
+            Z[i * k + j]--;
+          }
+        }
+      }
+      float *X_T = new float[n * batch];
+      transpose(X_batch, X_T, batch, n);
+      float *grad = new float[n * k];
+      mat_mul(X_T, Z, grad, n, batch, k);
+      for(size_t i = 0; i < n * k; i++){
+        theta[i] -= lr * grad[i] / (float)batch;
+      }
+      delete[] Z;
+      delete[] X_T;
+      delete[] grad;
+    }
     /// END YOUR CODE
 }
 
