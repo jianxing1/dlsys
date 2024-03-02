@@ -10,7 +10,7 @@ sys.path.append("python/")
 import needle as ndl
 
 
-def parse_mnist(image_filesname, label_filename):
+def parse_mnist(image_filename, label_filename):
     """Read an images and labels file in MNIST format.  See this page:
     http://yann.lecun.com/exdb/mnist/ for a description of the file format.
 
@@ -33,7 +33,23 @@ def parse_mnist(image_filesname, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    with gzip.open(image_filename, 'rb') as img_file:
+      magic_number, image_num, rows, cols = struct.unpack('>4i', img_file.read(16))
+      assert(magic_number == 2051)
+      total_pixels = rows * cols
+      X = np.vstack([np.array(struct.unpack(f"{total_pixels}B", img_file.read(total_pixels)), 
+          dtype = np.float32) for _ in range(image_num)])
+      X_max = np.max(X)
+      X_min = np.min(X)
+      X = (X - X_min) / (X_max - X_min)
+      # print(X)
+
+    with gzip.open(label_filename, 'rb') as label_file:
+      magic_number, num = struct.unpack('>2i', label_file.read(8)) 
+      assert(magic_number == 2049)
+      y = np.array(struct.unpack(f"{num}B", label_file.read(num)), dtype = np.uint8)
+      # print(y)
+    return(X, y)
     ### END YOUR SOLUTION
 
 
@@ -54,7 +70,7 @@ def softmax_loss(Z, y_one_hot):
         Average softmax loss over the sample. (ndl.Tensor[np.float32])
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    return ndl.summation(ndl.log(ndl.summation(ndl.exp(Z), axes=(1,))) - ndl.summation(Z*y_one_hot, axes=(1,))) / Z.shape[0]
     ### END YOUR SOLUTION
 
 
@@ -83,7 +99,16 @@ def nn_epoch(X, y, W1, W2, lr=0.1, batch=100):
     """
 
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    for i in range(int(X.shape[0] / batch)):
+      X_batch = ndl.Tensor(X[i * batch: min((i+1) * batch, X.shape[0])])
+      y_batch = y[i * batch: min((i+1) * batch, X.shape[0])]
+      Z1 = ndl.relu(X_batch @ W1) @ W2
+      Iy = ndl.Tensor(np.eye(W2.shape[1])[y_batch])
+      loss = softmax_loss(Z1, Iy)
+      loss.backward()
+      W1 = (W1 - lr * W1.grad).detach()
+      W2 = (W2 - lr * W2.grad).detach()
+    return W1, W2
     ### END YOUR SOLUTION
 
 
