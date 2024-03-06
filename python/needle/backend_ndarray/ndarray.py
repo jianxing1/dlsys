@@ -247,7 +247,9 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if not self.is_compact or prod(self.shape) != prod(new_shape):
+          raise ValueError
+        return self.as_strided(new_shape, self.compact_strides(new_shape))
         ### END YOUR SOLUTION
 
     def permute(self, new_axes):
@@ -272,7 +274,9 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_shape = tuple(self._shape[i] for i in new_axes)
+        new_strides = tuple(self._strides[i] for i in new_axes)
+        return self.as_strided(new_shape, new_strides)
         ### END YOUR SOLUTION
 
     def broadcast_to(self, new_shape):
@@ -296,7 +300,11 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for i in range(self.ndim):
+          if self._shape[i] != 1 and new_shape[i] != self._shape[i]:
+            raise AssertionError
+        new_strides = tuple([0 if self._shape[i] == 1 else self._strides[i] for i in range(self.ndim)])
+        return self.as_strided(new_shape, new_strides)
         ### END YOUR SOLUTION
 
     ### Get and set elements
@@ -363,7 +371,10 @@ class NDArray:
         assert len(idxs) == self.ndim, "Need indexes equal to number of dimensions"
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_shape = tuple([(sl.stop - sl.start + sl.step - 1) // sl.step for sl in idxs])
+        new_strides = tuple([self._strides[i] * idxs[i].step for i in range(len(idxs))])
+        new_offset = np.sum(np.array([sl.start * self._strides[i] for i, sl in enumerate(idxs)]))
+        return NDArray.make(new_shape, new_strides, self._device, self._handle, new_offset)
         ### END YOUR SOLUTION
 
     def __setitem__(self, idxs, other):
